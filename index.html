@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Automation Tool</title>
+
+<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+
+<style>
+
+
+    body{
+        width:90%;
+        min-height:600px;
+        background:#01022de5; 
+        font-family:Arial,sans-serif;
+    }
+    header{
+        text-align:center; 
+        padding:20px 0;
+    }
+    h1{
+        letter-spacing:2px; 
+        font-size:45px; 
+        font-weight:700; 
+        text-transform:uppercase; 
+        color:#021180; 
+        transition:0.5s;
+    }
+    h1:hover{
+        color:#0329d3;
+    }
+    .text{
+        letter-spacing:1px; 
+        font-size:20px; 
+        text-transform:capitalize; 
+        color:white;
+    }
+    section{
+        margin:40px auto; 
+        width:80%;
+    }
+    h2{
+        text-align:center; 
+        letter-spacing:1px; 
+        color:white; 
+        background:#690336; 
+        font-size:22px; 
+        font-weight:700; 
+        padding:6px;
+    }
+    #upload-form{
+        display:flex; 
+        flex-direction:column; 
+        gap:12px; margin-top:20px; 
+        align-items:center;}
+    #upload-form input{
+        outline:none; 
+        border:none; 
+        color:black; 
+        font-size:16px; 
+        background:#ffffff3a; 
+        height:35px; 
+        border-radius:6px; 
+        padding:6px; 
+        width:60%;
+    }
+    #process-file{
+        width:150px; 
+        height:40px; 
+        border-radius:6px; 
+        border:none; 
+        background:white; 
+        color:#000000a1; 
+        font-size:16px; 
+        cursor:pointer; 
+        transition:0.3s;
+    }
+    #process-file:hover{
+        background:none; 
+        border:1px solid black; 
+        color:black; 
+        transform:scale(1.05);
+    }
+    .download-btn{
+        width:150px; 
+        height:40px; 
+        border-radius:6px; 
+        border:none; 
+        color:white; 
+        font-size:16px; 
+        cursor:pointer; 
+        margin-top:12px; 
+        display:none;
+    }
+    #download-csv{
+        background:#0329d3;
+    }
+    #download-csv:hover{
+        background:#021180; 
+        transform:scale(1.05);
+    }
+    #download-xlsx{
+        background:#690336;
+    }
+    #download-xlsx:hover{
+        background:#450025; 
+        transform:scale(1.05);
+    }
+    table{width:100%; 
+        border-collapse:collapse; 
+        margin-top:15px;
+    }
+    th, td{
+        border:1px solid #ccc; 
+        padding:6px; 
+        text-align:center; 
+        color:white;
+    }
+    th{
+        background:#0329d3;
+    }
+    td{
+        background:#00000055;
+    }
+    td:focus{
+        outline:2px solid #ffcc00; 
+        background:#00000088;
+    }
+    #log-list{
+        list-style:none; 
+        padding-left:0;
+    }
+    #log-list li{
+        margin:4px 0; 
+        color:white;
+    }
+    footer{
+        text-align:center; 
+        padding:10px; 
+        color:white; 
+        background:#021180; 
+        margin-top:30px;
+    }
+</style>
+</head>
+<body>
+
+        <header>
+            <h1>Universal Data Automation Tool</h1>
+            <p class="text">Upload, edit, and download your CSV or Excel file easily</p>
+        </header>
+
+        <section id="upload-section">
+            <h2>Upload File</h2>
+            <form id="upload-form">
+                <input type="file" id="file-input" accept=".csv, .xlsx">
+                <button type="submit" id="process-file">Process File</button>
+                <button type="button" class="download-btn" id="download-csv">Download CSV</button>
+                <button type="button" class="download-btn" id="download-xlsx">Download XLSX</button>
+            </form>
+        </section>
+
+        <section id="results-section">
+            <h2>Processed Output</h2>
+            <table id="output-table">
+                <thead><tr></tr></thead>
+                <tbody></tbody>
+            </table>
+        </section>
+
+        <section id="log-section">
+                <h2>Log</h2>
+                <ul id="log-list"></ul>
+        </section>
+
+        <footer>
+            <p>&copy; 2026 Automation Tool. Limam Maatalla.</p>
+        </footer>
+
+
+
+    <script>
+
+
+        const uploadForm = document.getElementById("upload-form");
+        const fileInput = document.getElementById("file-input");
+        const downloadCsvBtn = document.getElementById("download-csv");
+        const downloadXlsxBtn = document.getElementById("download-xlsx");
+        let processedData = [];
+        let currentFileType = ""; // CSV أو XLSX
+
+        function updateProcessedDataFromTable() {
+            const table = document.getElementById("output-table");
+            const rows = Array.from(table.querySelectorAll("tr"));
+            return rows.map(row => Array.from(row.cells).map(cell => cell.textContent.trim()));
+        }
+
+        uploadForm.addEventListener("submit", (event) => {
+            event.preventDefault();
+            if(fileInput.files.length === 0){
+                alert("Please select a file first");
+                return; 
+            }
+
+            const file = fileInput.files[0];
+            const fileName = file.name;
+            currentFileType = fileName.split('.').pop().toLowerCase();
+            const sizeMB = (file.size/(1024*1024)).toFixed(2);
+            const logList = document.getElementById("log-list");
+            const liCreate = document.createElement("li");
+            liCreate.textContent = `File name: ${fileName} | Type: ${currentFileType} | Size: ${sizeMB} MB`;
+            logList.appendChild(liCreate);
+
+            if(currentFileType==="csv" || currentFileType==="xlsx"){
+                const reader = new FileReader();
+
+                reader.onload = function(e){
+                    let data = [];
+
+                    if(currentFileType==="csv"){
+                        const text = e.target.result;
+                        const rows = text.trim().split("\n");
+                        data = rows.map(row => row.split(",").map(cell => cell.trim()));
+                    } else if(currentFileType==="xlsx"){
+                        const workbook = XLSX.read(e.target.result, {type:"binary"});
+                        const sheetName = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[sheetName];
+                        data = XLSX.utils.sheet_to_json(worksheet, {header:1});
+                    }
+
+                    // تنظيف الصفوف الفارغة وعدد الأعمدة
+                    data = data.filter(row => row.some(cell => cell !== null && cell.toString().trim() !== ""));
+                    if(data.length===0){
+                        alert("The file is empty after cleaning!"); 
+                        return; 
+                    }
+                    const colCount = data[0].length;
+                    data = data.map(row=>{
+                        let newRow = row.slice(0,colCount);
+                        while(newRow.length<colCount) newRow.push("");
+                        return newRow.map(cell => cell.toString().trim());
+                    });
+                    processedData = data;
+
+                    const table = document.getElementById("output-table");
+                    const thead = table.querySelector("thead tr");
+                    const tbody = table.querySelector("tbody");
+                    thead.innerHTML = "";
+                    tbody.innerHTML = "";
+
+                    data[0].forEach(header => {
+                        const th = document.createElement("th");
+                        th.textContent = header; 
+                        thead.appendChild(th);
+                    });
+                    data.slice(1).forEach(row => {
+                        const tr = document.createElement("tr");
+                        row.forEach(cell => {
+                            const td = document.createElement("td");
+                            td.textContent = cell ?? "";
+                            td.contentEditable = "true";
+                            tr.appendChild(td);
+                        });
+                        tbody.appendChild(tr);
+                    });
+
+                    const liRows = document.createElement("li");
+                    liRows.textContent = `Processed ${data.length-1} rows after cleaning.`;
+                    logList.appendChild(liRows);
+
+                        downloadCsvBtn.style.display = "inline-block";
+                        downloadXlsxBtn.style.display = "inline-block";
+                    };
+
+                    if(currentFileType==="csv") reader.readAsText(file);
+                        else reader.readAsBinaryString(file);
+                        } else { 
+                            alert("Unsupported file type! Please upload CSV or XLSX"); 
+                    }
+            });
+
+            // تحميل CSV
+            downloadCsvBtn.addEventListener("click", ()=>{
+                if(currentFileType!=="csv"){
+                    alert("This file is not CSV!");
+                    return; 
+                }
+                processedData = updateProcessedDataFromTable();
+                if(processedData.length === 0) return;
+                let csvContent = processedData.map(row => row.map(cell=> `"${cell}"`).join(",")).join("\n");
+                const blob = new Blob([csvContent], {type:"text/csv;charset=utf-8;"});
+                const link = document.createElement("a");
+                link.href = URL.createObjectURL(blob);
+                link.download = "processed_data.csv";
+                link.click();
+            });
+
+            // تحميل XLSX
+            downloadXlsxBtn.addEventListener("click", ()=>{
+                if(currentFileType!=="xlsx"){
+                    alert("This file is not XLSX!");
+                    return; 
+                }
+                processedData = updateProcessedDataFromTable();
+                if(processedData.length === 0) return;
+                const ws = XLSX.utils.aoa_to_sheet(processedData);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "ProcessedData");
+                XLSX.writeFile(wb, "processed_data.xlsx");
+            });
+    </script>
+
+</body>
+</html>
